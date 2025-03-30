@@ -14,7 +14,7 @@ const wss = new WebSocketServer({ server });
 console.log(`WebSocket wss is running on ws://localhost:${PORT}`);
 
 const games = {};
-let gameNum = 0;
+let gameCounter = 0;
 
 wss.on('connection', (ws, req) => {
   console.log('New client connected');
@@ -25,6 +25,8 @@ wss.on('connection', (ws, req) => {
     return;
   }
 
+  let gameNum = gameCounter;
+  gameCounter++;
   games[gameNum] = spawn('../game/a.out');
   games[gameNum].stdout.on('data', (data) => {
     console.log("got line:", data.toString());
@@ -37,7 +39,6 @@ wss.on('connection', (ws, req) => {
     // ws.close();
   });
   ws.send(gameNum);
-  gameNum++;
   
   ws.on('message', (message) => {
     message = message.toString();
@@ -46,6 +47,14 @@ wss.on('connection', (ws, req) => {
     const game = games[gameId];
     game.stdin.write(move.x + '\n');
     game.stdin.write(move.y + '\n');
+  });
+
+  ws.on('close', () => {
+    games[gameNum].kill();
+  });
+
+  ws.on('error', () => {
+    games[gameNum].kill();
   });
 });
 
