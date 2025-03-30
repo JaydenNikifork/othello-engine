@@ -19,7 +19,7 @@ let gameNum = 0;
 wss.on('connection', (ws, req) => {
   console.log('New client connected');
 
-  if (req.url !== '/othello/ws') {
+  if (req.url !== '/ws') {
     console.log(`Rejected connection with invalid path: ${req.url}`);
     ws.close();
     return;
