@@ -2,39 +2,51 @@
 #include "../ai/ai.h"
 
 int main() {
-  PTree *root = malloc(sizeof(PTree));  // keep root for free
-  initPTree(root);
-  PTree *pt = root;
+  Board b;
+  initBoard(&b);
 
   gprintf("Game start! \n");
 
   int noMovesPrev = 0;
-  while (pt->board->ws + pt->board->bs < SIZE * SIZE) {
-    printBoard(pt->board);
+  while (b.ws + b.bs < SIZE * SIZE) {
+    printBoard(&b);
 
-    int hasMoves = hasMove(pt);
-    if (!hasMove) {
+    int hasMoves = hasMove(&b);
+    if (!hasMoves) {
       if (noMovesPrev) {
         break;
       } else {
         noMovesPrev = 1;
+        if (b.turn == W) b.turn = B;
+        else b.turn = W;
+        continue;
       }
     } else {
       noMovesPrev = 0;
     }
 
-    alphaBeta(pt, 7, -1000000, 1000000);
+    alphaBeta(&b, DEPTH, -TERMINAL, TERMINAL);
+    if (b.bestMove == -1) {
+      printf("Alpha-Beta Failed! \n");
+      return 1;
+    }
 
-    gprintf("Eval: %d \n", pt->eval);
+    gprintf("Eval: %d \n", b.eval);
 
     int x, y;
-    if (pt->board->turn == W) {
+    if (b.turn == W) {
       gprintf("White's turn! \n");
+      x = b.bestMove / SIZE;
+      y = b.bestMove % SIZE;
+      // printf("Best move %d %d %d\n" , b.bestMove, y, x);
+      // move(&b, x, y);
+      // continue;
     } else {
       gprintf("Black's turn! \n");
-      x = pt->bestMove / SIZE;
-      y = pt->bestMove % SIZE;
-      move(&pt, x, y);
+      x = b.bestMove / SIZE;
+      y = b.bestMove % SIZE;
+      // printf("Best move %d %d %d\n" , b.bestMove, y, x);
+      move(&b, x, y);
       continue;
     }
 
@@ -42,7 +54,7 @@ int main() {
     scanf("%d", &y);
     gprintf("Enter y: \n");
     scanf("%d", &x);
-    int moveStatus = move(&pt, x, y);
+    int moveStatus = move(&b, x, y);
     if (moveStatus > 0) {
       gprintf("Invalid move, try again. \n");
     } else if (moveStatus < 0) {
@@ -51,17 +63,15 @@ int main() {
     }
   }
   
-  printBoard(pt->board);
+  printBoard(&b);
 
-  if (pt->board->ws > pt->board->bs) {
-    gprintf("White wins! %d-%d\n", pt->board->ws, pt->board->bs);
-  } else if (pt->board->ws < pt->board->bs) {
-    gprintf("Black wins! %d-%d\n", pt->board->bs, pt->board->ws);
+  if (b.ws > b.bs) {
+    gprintf("White wins! %d-%d\n", b.ws, b.bs);
+  } else if (b.ws < b.bs) {
+    gprintf("Black wins! %d-%d\n", b.bs, b.ws);
   } else {
     gprintf("It's a draw! \n");
   }
-
-  freePTree(root);
 
   return 0;
 }

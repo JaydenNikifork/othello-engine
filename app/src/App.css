@@ -1,0 +1,37 @@
+
+.App {
+  text-align: center;
+}
+
+.board {
+  display: flex;
+  flex-wrap: wrap;
+  width: 60%;
+}
+
+.cell {
+  background-color: rgb(29, 97, 29);
+  border: solid rgb(17, 75, 17) 6px;
+  width: calc(100% / 8);
+  aspect-ratio: 1 / 1;
+  box-sizing: border-box;
+}
+
+.piece {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  margin: auto;
+  border-radius: 50%;
+}
+
+.hidden {
+  display: none;
+}
+
+.white {
+  background-color: white;
+}
+
+.black {
+  background-color: black;
+}

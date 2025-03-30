@@ -30,24 +30,22 @@ void initBoard(Board *board) {
 
   board->ws = board->bs = 2;
   board->turn = W;
+
+  board->eval = 0;
+  board->bestMove = -1;
 }
 
-int copyBoard(Board *board, Board **newBoard) {
-  if (*newBoard != NULL) return -1;
+int copyBoard(Board *board, Board *copied) {
+  // for (int i = 0; i < SIZE * SIZE; ++i) {
+  //   copied->theBoard[i] = board->theBoard[i];
+  // }
+  memcpy(copied->theBoard, board->theBoard, SIZE * SIZE * sizeof(Square));
+  copied->ws = board->ws;
+  copied->bs = board->bs;
+  copied->turn = board->turn;
 
-  Board *tempB = malloc(sizeof(Board));
-  if (tempB == NULL) {
-    printf("Copy board malloc failed!\n");
-    return -1;
-  }
-  for (int i = 0; i < SIZE * SIZE; ++i) {
-    tempB->theBoard[i] = board->theBoard[i];
-  }
-  tempB->ws = board->ws;
-  tempB->bs = board->bs;
-  tempB->turn = board->turn;
-
-  *newBoard = tempB;
+  copied->eval = board->eval;
+  copied->bestMove = board->bestMove;
 
   return 0;
 }
@@ -137,16 +135,9 @@ int moveInDir(Board *board, int x, int y, int dir) {
   return numFlipped;
 }
 
-int move(PTree **ptptr, int x, int y) {
-  PTree *pt = *ptptr;
-  Board *oldBoard = pt->board;
-  Board *board = NULL;
-  int status = copyBoard(oldBoard, &board);
-  if (status != 0) return -1;
-
+int move(Board *board, int x, int y) {
   if (board->theBoard[toCoord(x, y)] != E) {
-    free(board);
-    return 1;
+    return 0;
   }
 
   int numFlipped = 0;
@@ -155,8 +146,7 @@ int move(PTree **ptptr, int x, int y) {
   }
 
   if (numFlipped == 0) {
-    free(board);
-    return 1;
+    return 0;
   }
 
   board->theBoard[toCoord(x, y)] = board->turn;
@@ -171,73 +161,101 @@ int move(PTree **ptptr, int x, int y) {
     board->turn = W;
   }
 
+  return numFlipped;
+}
 
-  // create child and point to it instead
-  PTree *child = malloc(sizeof(PTree));
-  initPTree(child);
-  free(child->board);
-  child->board = board;
-  child->prev = pt;
-
-  if (pt->childs == NULL) {
-    pt->childLimit = 1;
-    pt->childs = malloc(sizeof(PTree*));
-    if (pt->childs == NULL) {
-      printf("Childs array first malloc failed!\n");
-      return -1;
+int getMoves(Board *b, Move *moves) {
+  // assumes moves is allocated to hold SIZE * SIZE moves
+  Board scrapB;
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      copyBoard(b, &scrapB);
+      int numFlipped = move(&scrapB, i, j);
+      int coord = toCoord(i, j);
+      if (numFlipped == 0) {
+        moves[coord].coord = -1;
+        moves[coord].numFlipped = 0;
+        moves[coord].numMoves = 0;
+      } else {
+        int numMoves = getNumMoves(&scrapB);
+        moves[coord].coord = coord;
+        moves[coord].numFlipped = numFlipped;
+        moves[coord].numMoves = numMoves;
+      }
     }
-  } else if (pt->numChilds == pt->childLimit) {
-    pt->childLimit *= 2;
-    PTree **newChilds = realloc(pt->childs, pt->childLimit * sizeof(PTree*));
-    if (newChilds == NULL) {
-      printf("Childs array realloc failed!\n");
-      return -1;
-    }
-    pt->childs = newChilds;
   }
-  pt->childs[pt->numChilds] = child;
-  pt->numChilds++;
-  *ptptr = child;
+}
 
+int getNumMoves(Board *b) {
+  Move moves[SIZE * SIZE];
+  Board scrapB;
+  int numMoves = 0;
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      copyBoard(b, &scrapB);
+      int numFlipped = move(&scrapB, i, j);
+      if (numFlipped > 0) {
+        ++numMoves;
+      }
+    }
+  }
+  return numMoves;
+}
+
+int hasMove(Board *b) {
+  Board copied;
+  copyBoard(b, &copied);
+  for (int i = 0; i < SIZE; ++i) {
+    for (int j = 0; j < SIZE; ++j) {
+      int numFlipped = move(&copied, i, j);
+      if (numFlipped != 0) return 1;
+    }
+  }
   return 0;
 }
 
-int hasMove(PTree *pt) {
-  for (int i = 0; i < SIZE; ++i) {
-    for (int j = 0; j < SIZE; ++j) {
-      int moveStatus = move(&pt, i, j);
-      if (moveStatus == 0) return 1;
-    }
+void printState(Board *b) {
+  char str[SIZE * SIZE + 3];
+  str[0] = '0' + b->turn;
+  str[1] = '-';
+  for (int i = 0; i < SIZE * SIZE; ++i) {
+    str[i + 2] = '0' + b->theBoard[i];
   }
-  return 0;
+  str[SIZE * SIZE + 2] = '\0';
+  printf("%s\n", str);
+  fflush(stdout);
 }
 
 void printBoard(Board *board) {
-  for (int i = -1; i < SIZE; ++i) {
-    for (int j = -1; j < SIZE; ++j) {
-      if (i == -1 && j == -1) {
-        gprintf(" ");
-      } else if (i == -1) {
-        gprintf("%d", j);
-      } else if (j == -1) { 
-        gprintf("%d", i);
-      } else {
-        enum Square cur = board->theBoard[toCoord(i, j)];
-        switch (cur)
-        {
-        case E:
+  if (GUI) {
+    for (int i = -1; i < SIZE; ++i) {
+      for (int j = -1; j < SIZE; ++j) {
+        if (i == -1 && j == -1) {
           gprintf(" ");
-          break;
-        case W:
-          gprintf("W");
-          break;
-        case B:
-          gprintf("B");
-          break;
+        } else if (i == -1) {
+          gprintf("%d", j);
+        } else if (j == -1) { 
+          gprintf("%d", i);
+        } else {
+          enum Square cur = board->theBoard[toCoord(i, j)];
+          switch (cur)
+          {
+          case E:
+            gprintf(" ");
+            break;
+          case W:
+            gprintf("W");
+            break;
+          case B:
+            gprintf("B");
+            break;
+          }
         }
+        gprintf(" | ");
       }
-      gprintf(" | ");
+      gprintf("\n____________________________________\n");
     }
-    gprintf("\n____________________________________\n");
+  } else {
+    printState(board);
   }
 }
